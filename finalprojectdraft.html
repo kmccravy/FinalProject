@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>FFLC Food Finder</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.js"></script>
+    
+    <style>
+        body {
+            margin:0;
+            padding:0;
+        }
+        #map {
+            position:absolute;
+            left:300px;
+            top:150px;
+            bottom:0;
+            width:100%;
+        }
+        #title {
+            z-index: 99999;
+            background-color: lightgray;
+            text-align: left;
+            position:relative;
+            top: 0;
+            height: 150px;
+            margin-left: 15px;
+        }   
+        .sidenav{ 
+            margin-left: 15px;
+            background-color: grey;
+        }
+        
+        /* Code to make checkbox into a retangular toggle */
+        /* The switch - the box around the slider */
+        .switch {
+            position: absolute;
+            display: inline-block;
+            left: 140px;
+            width: 30px;
+            height: 17px;
+        }
+        /* Hide default HTML checkbox */
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        /* The slider */
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            -webkit-transition: .4s;
+            transition: .4s;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 13px;
+            width: 13px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            -webkit-transition: .4s;
+            transition: .4s;
+        }
+        /* Other slider funtions */
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+        input:focus + .slider {
+            box-shadow: 0 0 1px #2196F3;
+        }
+        input:checked + .slider:before {
+            -webkit-transform: translateX(13px);
+            -ms-transform: translateX(13px);
+            transform: translateX(13px);
+        }
+    </style>
+    </head>
+    
+<body>
+    <div id="map"></div>
+    <div id='title'>
+        <h1>Food For Lane County</h1>
+        <h2>Where can you find food in Lane County?</h2>
+    </div>
+    
+    <div class="sidenav">    
+        <b>Find food based on type of partner: </b>
+        <!--Partner layer switches-->
+        <div> Public Pantries
+            <label class="switch" > 
+                <input type="checkbox" id="PantrySwitch" onclick="pantryVis()" checked>
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div> Meal Sites
+            <label class="switch" > 
+                <input type="checkbox" id="MealSwitch" onclick="mealVis()" checked>
+                <span class="slider"></span>
+            </label>
+        </div>
+        
+        <!-- Days opened switches -->
+        <br><b>Find food on a specific day:</b>
+        <div> Sunday
+            <label class="switch" > 
+                <input type="checkbox" id="SunSwitch" onclick="filterMap()">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div> Monday
+            <label class="switch" > 
+                <input type="checkbox" id="MonSwitch" onclick="filterMap()">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div> Tuesday
+            <label class="switch" > 
+                <input type="checkbox" id="TuesSwitch" onclick="filterMap()">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div> Wednesday
+            <label class="switch" > 
+                <input type="checkbox" id="WedSwitch" onclick="filterMap()">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div> Thursday
+            <label class="switch" > 
+                <input type="checkbox" id="ThursSwitch" onclick="filterMap()">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div> Friday
+            <label class="switch" > 
+                <input type="checkbox" id="FriSwitch" onclick="filterMap()">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div> Saturday
+            <label class="switch" > 
+                <input type="checkbox" id="SatSwitch" onclick="filterMap()">
+                <span class="slider"></span>
+            </label>
+        </div>
+        
+        <!--Time of day switches-->
+        <br> <b>Find food at a specific time of day:</b>
+        <div> Morning
+            <label class="switch" > 
+                <input type="checkbox" id="MornSwitch" onclick="filterMap()">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div> Afternoon
+            <label class="switch" > 
+                <input type="checkbox" id="AfterSwitch" onclick="filterMap()">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div> Evening
+            <label class="switch" > 
+                <input type="checkbox" id="EveSwitch" onclick="filterMap()">
+                <span class="slider"></span>
+            </label>
+        </div>
+        
+        <!--Transportation layer switches-->
+        <br> <b>Use transporation data to find the <br>best location for you:</b>
+        <div> Public Transit
+            <label class="switch" > 
+                <input type="checkbox" id="TransitSwitch" onclick="transitVis()">
+                <span class="slider"></span>
+            </label>
+        </div>
+            <div> Bicycle Network
+            <label class="switch" > 
+                <input type="checkbox" id="BikeSwitch" onclick="bikeVis()">
+                <span class="slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1Ijoiam9tZXJzb24iLCJhIjoiY2o1bXE2bHlyMnJhZDMzbnpyMnhlODdpcSJ9.QJMJ_cTFCY050aZfSn1umQ';
+
+        //Map bounds
+        var bounds = [
+		    [-124.3, 43.25], // Southwest coordinates
+		    [-120.9, 44.63] // Northeast coordinates 
+		];
+        //Initialize the map
+        var map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/streets-v11',
+            center: [-122.55, 43.95],
+            zoom: 8,
+            minZoom: 8,
+            maxBounds: bounds
+        });
+        // Add zoom and rotation controls to the map.
+        map.addControl(new mapboxgl.NavigationControl());
+       
+        //Map on load function
+        map.on('load', () => {           
+            //County GeoJSOn source
+            map.addSource('county', {
+                type: 'geojson',
+                data: 'https://kmccravy.github.io/FinalProject/LaneCounty.geojson'
+            });
+            //Add county source to map as layer
+            map.addLayer({
+                'id': 'county-layer',
+                'type': 'fill',
+                'source': 'county',
+                'paint': {
+                    'fill-color': '#a7a7a7',
+                    'fill-opacity': 0.2,
+                    'fill-outline-color': '#000000'
+                }
+            });
+            
+            //Transit Routes GeoJSOn source
+            map.addSource('routes', {
+                type: 'geojson',
+                data: 'https://kmccravy.github.io/FinalProject/TransitRoutes.geojson'
+            });
+            //Add routes source to map as layer
+            map.addLayer({
+                'id': 'routes-layer',
+                'type': 'line',
+                'source': 'routes',
+                'layout': {
+                    'visibility': 'none',
+                    'line-join': 'round'
+                },
+                'paint': {
+                    'line-color': '#514663',
+                    'line-opacity': 0.8,
+                    'line-width': 2
+
+                }
+            });
+            
+            //Transit Stops GeoJSOn source
+            map.addSource('stops', {
+                type: 'geojson',
+                data: 'https://kmccravy.github.io/FinalProject/TransitStops.geojson'
+            });
+            //Add routes source to map as layer
+            map.addLayer({
+                'id': 'stops-layer',
+                'type': 'circle',
+                'source': 'stops',
+                'layout': {
+                    'visibility': 'none'
+                },
+                'paint': {
+                    'circle-color': '#514663',
+                    'circle-opacity': 0.8,
+                    'circle-radius': 3
+                }
+            });
+            //Bike Routes GeoJSOn source
+            map.addSource('bike', {
+                type: 'geojson',
+                data: 'https://kmccravy.github.io/FinalProject/BikeRoutes.geojson'
+            });
+            //Add routes source to map as layer
+            map.addLayer({
+                'id': 'bike-layer',
+                'type': 'line',
+                'source': 'bike',
+                'layout': {
+                    'visibility': 'none'
+                },
+                'paint': {
+                    'line-color': '#658E9C',
+                    'line-opacity': 0.8,
+                    'line-width': 2
+                }
+            });
+            
+            //Pantry Services Code
+            //Pantry GeoJSOn source
+            map.addSource('pantry', {
+                type: 'geojson',
+                data: 'https://kmccravy.github.io/FinalProject/PantryService.geojson'
+            });  
+            //Add pantry source to map as layer
+            map.addLayer({
+                'id': 'pantry',
+                'type': 'circle',
+                'source': 'pantry',
+                'paint': {
+                    'circle-color': '#8CBA80',
+                    'circle-radius': 6
+                }
+            });
+            // Pantry popup code
+            map.on('click', 'pantry', (e) => {
+                const coordinates = e.features[0].geometry.coordinates.slice();
+                const description = "<h3>" + e.features[0].properties.Agency_Name + "</h3><br><b>Address: </b>" + e.features[0].properties.Address + ", " + e.features[0].properties.City + " " + e.features[0].properties.Zip + "<br><b>Hours of Operation:</b><br>" + e.features[0].properties.Hours_of_Operation + "<br><a href=" + e.features[0].properties.Get_Directions + " target='_blank'>Get Directions</a>";
+                //Pantry popup appears over points.
+                while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+                    coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+                }
+                //Adding pantry popup to map
+                new mapboxgl.Popup()
+                    .setLngLat(coordinates)
+                    .setHTML(description)
+                    .addTo(map);
+                });      
+            // Mouseover code for pantry layer
+            map.on('mouseenter', 'pantry', function () {
+                map.getCanvas().style.cursor = 'pointer';
+                    });
+                map.on('mouseleave', 'pantry', function () {
+                    map.getCanvas().style.cursor = '';
+            });
+            
+            //Meal Site Code
+            //Meal GeoJSOn source
+            map.addSource('meal', {
+                type: 'geojson',
+                data: 'https://kmccravy.github.io/FinalProject/MealSites.geojson'
+            });
+            //Add meal source to map as layer
+            map.addLayer({
+                'id': 'meal',
+                'type': 'circle',
+                'source': 'meal',
+                'paint': {
+                    'circle-color': '#F19C79'
+                }
+            });
+            // Meal popup code
+            map.on('click', 'meal', (e) => {
+                const coordinates = e.features[0].geometry.coordinates.slice();
+                const description = "<h3>" + e.features[0].properties.Agency_Name + "</h3><br><b>Address: </b>" + e.features[0].properties.Address + ", " + e.features[0].properties.City + " " + e.features[0].properties.Zip + "<br><b>Hours of Operation:</b><br>" + e.features[0].properties.Hours_of_Operation + "<br><a href=" + e.features[0].properties.Get_Directions + " target='_blank'>Get Directions</a>";
+                //Meal popup appears over points.
+                while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+                    coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+                }
+                //Adding meal popup to map
+                new mapboxgl.Popup()
+                    .setLngLat(coordinates)
+                    .setHTML(description)
+                    .addTo(map);
+                });      
+            // Mouseover code here for meal layer
+            map.on('mouseenter', 'meal', function () {
+                map.getCanvas().style.cursor = 'pointer';
+                    });
+                map.on('mouseleave', 'meal', function () {
+                    map.getCanvas().style.cursor = '';
+            });
+        });
+        
+        
+        // filter example  https://gis.stackexchange.com/questions/424980/mapbox-combining-multiple-checkbox-filters
+        //Filters below based on these filter example
+//        var dayFilter=[
+//            "any",
+//            ["==", 'Monday', 'TRUE'],
+//            ["==", 'Tuesday', 'TRUE'],
+//        ]     
+//        var compositeFilter=[
+//                ['all', ['any', ["==", 'Sunday', 'TRUE'],["==", 'Monday', 'TRUE']],
+//                ['any', ["==", 'Morning', 'TRUE'], ["==", 'Afternoon', 'TRUE']]]
+
+        //var for the math needed to make filters work
+        var filters = {};
+        var numDays = 0;
+        var numTime = 0
+        
+        //Amazing filter function for toggles
+        function filterMap() {
+            numDays = 0; numTime = 0;
+            var dayFilter = ['any'];
+                //Days of Week Switches
+                //Sunday Switch
+                if (document.getElementById("SunSwitch").checked)
+                    {dayFilter.push(["==", 'Sunday', 'TRUE'])
+                        numDays +=1;
+                    };    
+                //Monday Switch
+                if (document.getElementById("MonSwitch").checked)
+                    {dayFilter.push(["==", 'Monday', 'TRUE'])
+                        numDays +=1;
+                    }; 
+                //Tuesday Switch
+                if (document.getElementById("TuesSwitch").checked)
+                    {dayFilter.push(["==", 'Tuesday', 'TRUE'])
+                        numDays +=1;
+                    };
+                //Wednesday Switch
+                if (document.getElementById("WedSwitch").checked)
+                    {dayFilter.push(["==", 'Wednesday', 'TRUE'])
+                        numDays +=1;
+                    };
+                //Thursday Switch
+                if (document.getElementById("ThursSwitch").checked)
+                    {dayFilter.push(["==", 'Thursday', 'TRUE'])
+                        numDays +=1;
+                    };
+                //Friday Switch
+                if (document.getElementById("FriSwitch").checked)
+                    {dayFilter.push(["==", 'Friday', 'TRUE'])
+                        numDays +=1;
+                    };
+                //Saturday Switch
+                if (document.getElementById("SatSwitch").checked)
+                    {dayFilter.push(["==", 'Saturday', 'TRUE'])
+                        numDays +=1;
+                    };
+            var timeFilter = ['any'];
+                //Day Time Switches
+                //Morning Switch
+                if (document.getElementById("MornSwitch").checked)
+                    {timeFilter.push(["==", 'Morning', 'TRUE'])
+                        numTime +=1;
+                    };
+                //Afternoon Switch
+                if (document.getElementById("AfterSwitch").checked)
+                    {timeFilter.push(["==", 'Afternoon', 'TRUE'])
+                    numTime +=1;
+                    };
+                //Evening Switch
+                if (document.getElementById("EveSwitch").checked)
+                    {timeFilter.push(["==", 'Evening__After_5pm_', 'TRUE'])
+                        numTime +=1;
+                    };
+            
+            //math or set theory to make filters work
+            if(numDays > 0 && numTime == 0){
+                map.setFilter('meal', dayFilter);
+                map.setFilter('pantry', dayFilter)
+            } else if (numDays == 0 && numTime > 0){
+                map.setFilter('meal', timeFilter);
+                map.setFilter('pantry', timeFilter);
+            } else if (numDays > 0 && numTime > 0) {
+                var compositeFilter = ['all', dayFilter, timeFilter]
+                map.setFilter('meal', compositeFilter); 
+                map.setFilter('pantry', compositeFilter); 
+                console.log(compositeFilter)
+            } else {
+                    map.setFilter('meal',null)
+                    map.setFilter('pantry',null)
+            }
+            
+//            //old math to make filter reset
+//            if (numDays > 0){
+//                map.setFilter('meal', compositeFilter); // how to filter to one value
+//                map.setFilter('pantry', compositeFilter); // how to filter to one value
+//                console.log(compositeFilter)
+//            } else {
+//                map.setFilter('meal',null)
+//                map.setFilter('pantry',null)
+//            }
+        }  
+                                                                 
+        
+        //Function for layer visibility toggles
+        //Pantry layer
+        function pantryVis(){
+            if (document.getElementById("PantrySwitch").checked)
+            {
+                map.setLayoutProperty('pantry', 'visibility', 'visible');
+            }
+            else{
+                 map.setLayoutProperty('pantry', 'visibility', 'none');
+            }
+        }
+        
+        //Meal layer
+        function mealVis(){
+            if (document.getElementById("MealSwitch").checked)
+            {
+                map.setLayoutProperty('meal', 'visibility', 'visible');
+            }
+            else{
+                 map.setLayoutProperty('meal', 'visibility', 'none');
+            }
+        }
+
+        //Transit layers
+        function transitVis(){
+            if (document.getElementById("TransitSwitch").checked)
+            {
+                map.setLayoutProperty('routes-layer', 'visibility', 'visible');
+                map.setLayoutProperty('stops-layer', 'visibility', 'visible');
+                
+            }
+            else{
+                map.setLayoutProperty('routes-layer', 'visibility', 'none');
+                map.setLayoutProperty('stops-layer', 'visibility', 'none');
+            }
+        }
+        
+        //Bike layer
+        function bikeVis(){
+            if (document.getElementById("BikeSwitch").checked)
+            {
+                map.setLayoutProperty('bike-layer', 'visibility', 'visible');
+            }
+            else{
+                 map.setLayoutProperty('bike-layer', 'visibility', 'none');
+            }
+        }
+    </script>
+</body>
+</html>
